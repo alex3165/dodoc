@@ -14,6 +14,7 @@ var fs = require('fs-extra'),
   gutil = require('gulp-util'),
   parsedown = require('woods-parsedown'),
   slugg = require('slugg'),
+  formidable = require('formidable'),
   gm = require('gm').subClass({imageMagick: true}),
   Client = require('ftp')
 ;
@@ -101,6 +102,7 @@ module.exports = function(app, io){
     socket.on( 'createPubli', onCreatePubli);
     socket.on( 'editMetaPubli', onEditMetaPubli);
     socket.on( 'editMediasPubli', onEditMediasPubli);
+    socket.on( 'importMedias', onImportMedias);
 
     socket.on("editMediaMeta", onEditMediaMeta);
     socket.on("deleteMedia", onDeleteMedia);
@@ -459,6 +461,83 @@ module.exports = function(app, io){
       console.error("Failed to edit this publi! Error: ", error);
     });
 
+  }
+
+
+  function onImportMedias( mediaData) {
+
+// pour chaque fichier, executer onNewMedia avec le bon type
+    debugger;
+
+/*
+    var mediaData =
+  			{
+          "mediaType" : "video",
+  				"mediaData" : evt.target.result
+  		  }
+*/
+
+    // create an incoming form object
+    var form = new formidable.IncomingForm();
+
+    // specify that we want to allow the user to upload multiple files in a single request
+    form.multiples = false;
+
+    // store all uploads in the temp directory of the project
+    var tmpPath = getProjectPath( mediaData.slugFolderName, mediaData.slugProjectName) + '/tmp';
+    fs.ensureDirSync(tmpPath);
+    form.uploadDir = tmpPath;
+
+    var allFilesMeta = [];
+    var index = 0;
+    var processed;
+
+    form.on('field', function(name, value) {
+      console.log('Name: ' + name);
+      console.log('Value: ' + value);
+    });
+
+    // every time a file has been uploaded successfully,
+    form.on('file', function(field, file) {
+      console.log('File uploaded.');
+      console.log('field data : ' + JSON.stringify(field));
+      console.log('file data : ' + JSON.stringify(file));
+      allFilesMeta.push(file);
+    });
+
+    // log any errors that occur
+    form.on('error', function(err) {
+      console.log('An error has occured: \n' + err);
+    });
+
+    // once all the files have been uploaded, send a response to the client
+    form.on('end', function() {
+      if(allFilesMeta.length > 0) {
+        var m = [];
+        for(var i in allFilesMeta) {
+//           m.push(renameMediaAndCreateMeta(form.uploadDir, slugConfName, allFilesMeta[i]));
+        }
+
+        dev.logverbose('Will promise all soon');
+
+        // rename the new media if necessary to it's original name prepended by a number
+        Promise.all(m).then(function(filesToAddToMeta) {
+/*
+          addMediasToMetaConf(slugConfName, filesToAddToMeta);
+          var msg = {
+            "msg" : "success",
+            "medias" : JSON.stringify(allFilesMeta)
+          }
+          // not using those packets actually
+          res.end(JSON.stringify(msg));
+*/
+        });
+      }
+    });
+
+    // parse the incoming request containing the form data
+//     form.parse(mediaData);
+    var result = yield formidable.parse(form, this);
   }
 
 // F I N    B I B L I    P A G E
